@@ -2,35 +2,55 @@
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Check if the required parameters are provided
-    if (isset($_POST['name']) && isset($_POST['email'])) {
-        $name = $_POST['name'];
-        $email = $_POST['email'];
+    // Get the raw POST data
+    $raw_data = file_get_contents('php://input');
 
-        // Create an array with the received data
-        $data = array(
-            'name' => $name,
-            'email' => $email
-        );
+    // Attempt to decode the JSON data
+    $json_data = json_decode($raw_data, true);
+
+    // Check if the JSON decoding was successful and contains an array with members
+    if (is_array($json_data)) {
+        $saved_data = array();
+
+        foreach ($json_data as $member) {
+            // Check if each member has the required fields
+            if (isset($member['name']) && isset($member['email'])) {
+                $name = $member['name'];
+                $email = $member['email'];
+
+                // Create an array with the received data
+                $data = array(
+                    'name' => $name,
+                    'email' => $email
+                );
+
+                // Add the data to the saved_data array
+                $saved_data[] = $data;
+            } else {
+                // Skip invalid members
+                continue;
+            }
+        }
 
         // Convert the array to JSON format
-        $json_data = json_encode($data, JSON_PRETTY_PRINT);
+        $json_data = json_encode($saved_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-        // Save the JSON data to a file (data.json)
+        // Save the JSON data to a file (data.json) with UTF-8 encoding
         $file_path = 'data.json';
-        file_put_contents($file_path, $json_data);
+        file_put_contents($file_path, $json_data, LOCK_EX | FILE_TEXT);
+
 
         // Send a success response
         $response = array(
             'success' => true,
             'message' => 'Data saved successfully',
-            'data' => $data
+            'data' => $saved_data
         );
     } else {
-        // Missing parameters
+        // Invalid JSON format or missing array
         $response = array(
             'success' => false,
-            'message' => 'Missing parameters. Please provide both name and email.'
+            'message' => 'Invalid JSON format or missing array. Please provide valid JSON data with an array of members, each having "name" and "email" fields.'
         );
     }
 } else {
